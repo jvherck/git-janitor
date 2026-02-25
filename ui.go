@@ -1,0 +1,161 @@
+package main
+
+import (
+	"fmt"
+	"os/exec"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+// appState defines the distinct UI views within the application's lifecycle.
+type appState int
+
+const (
+	stateList appState = iota
+	stateConfirm
+)
+
+// Global UI styling definitions utilizing configurable constants.
+var (
+	docStyle     = lipgloss.NewStyle().Margin(DocMarginVertical, DocMarginHorizontal)
+	footerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorTextMuted))
+	confirmStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color(ColorPrimary)).
+			Padding(DialogPaddingVertical, ConfirmPaddingHorizontal).
+			Align(lipgloss.Center)
+)
+
+// model encapsulates the complete application state.
+type model struct {
+	list    list.Model
+	deleted []string
+	errs    []string
+	state   appState
+	width   int
+	height  int
+}
+
+// Init handles background tasks upon application startup.
+func (m model) Init() tea.Cmd {
+	return nil
+}
+
+// Update acts as the central event loop, processing keypresses and window resizes.
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		h, v := docStyle.GetFrameSize()
+		m.list.SetSize(msg.Width-h, msg.Height-v-2)
+
+	case tea.KeyMsg:
+		switch m.state {
+		case stateList:
+			return m.handleListUpdate(msg)
+		case stateConfirm:
+			return m.handleConfirmUpdate(msg)
+		}
+	}
+
+	if m.state == stateList {
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(msg)
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+// handleListUpdate processes keypresses specifically for the branch selection view.
+func (m model) handleListUpdate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+
+	case " ":
+		if i, ok := m.list.SelectedItem().(item); ok {
+			if !i.isProtected {
+				i.selected = !i.selected
+				m.list.SetItem(m.list.Index(), i)
+			}
+		}
+
+	case "a", "m", "c":
+		var newItems []list.Item
+		for _, listItem := range m.list.Items() {
+			i := listItem.(item)
+
+			if msg.String() == "c" {
+				i.selected = false
+			} else if !i.isProtected && (msg.String() == "a" || (msg.String() == "m" && i.isMerged)) {
+				i.selected = true
+			}
+			newItems = append(newItems, i)
+		}
+		cmd := m.list.SetItems(newItems)
+		return m, cmd
+
+	case "enter":
+		hasSelection := false
+		for _, listItem := range m.list.Items() {
+			if i, ok := listItem.(item); ok && i.selected {
+				hasSelection = true
+				break
+			}
+		}
+		if hasSelection {
+			m.state = stateConfirm
+		}
+		return m, nil
+	}
+	return m, nil
+}
+
+// handleConfirmUpdate processes keypresses specifically for the deletion confirmation dialog.
+func (m model) handleConfirmUpdate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch strings.ToLower(msg.String()) {
+	case "ctrl+c", "q", "n", "esc", "enter":
+		m.state = stateList
+		return m, nil
+
+	case "y":
+		for _, listItem := range m.list.Items() {
+			i, ok := listItem.(item)
+			if ok && i.selected && !i.isProtected {
+				cmd := exec.Command("git", "branch", "-D", i.name)
+				if err := cmd.Run(); err != nil {
+					m.errs = append(m.errs, fmt.Sprintf("Failed to delete %s", i.name))
+				} else {
+					m.deleted = append(m.deleted, i.name)
+				}
+			}
+		}
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+// View evaluates the current application state and renders the corresponding UI layout.
+func (m model) View() string {
+	if m.state == stateConfirm {
+		selectedCount := 0
+		for _, listItem := range m.list.Items() {
+			if i, ok := listItem.(item); ok && i.selected {
+				selectedCount++
+			}
+		}
+
+		prompt := fmt.Sprintf("Are you sure you want to force delete %d branches?\n\n(y/N)", selectedCount)
+		confirmBox := confirmStyle.Render(prompt)
+
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, confirmBox)
+	}
+
+	footer := footerStyle.Render("  a: all • m: merged • c: clear")
+	return docStyle.Render(m.list.View() + "\n" + footer)
+}
