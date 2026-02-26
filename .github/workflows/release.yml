@@ -31,4 +31,40 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
-          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+
+      - name: Update Homebrew Tap (Build from Source)
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          URL="https://github.com/jvherck/git-janitor/archive/refs/tags/${VERSION}.tar.gz"
+          curl -sL $URL -o source.tar.gz
+          SHA256=$(sha256sum source.tar.gz | awk '{print $1}')
+          DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          COMMIT=$(git rev-parse --short HEAD)
+          
+          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/jvherck/homebrew-tap.git tap-repo
+          mkdir -p tap-repo/Formula
+          
+          cat <<EOF > tap-repo/Formula/git-janitor.rb
+          class GitJanitor < Formula
+            desc "A fast, interactive TUI for cleaning up local Git branches."
+            homepage "https://github.com/jvherck/git-janitor"
+            url "$URL"
+            sha256 "$SHA256"
+            license "MIT"
+          
+            depends_on "go" => :build
+          
+            def install
+              system "go", "build", "-ldflags", "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}", "-o", bin/"git-janitor", "."
+            end
+          end
+          EOF
+          
+          cd tap-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/git-janitor.rb
+          git commit -m "Update git-janitor formula to ${VERSION}"
+          git push
