@@ -32,6 +32,27 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+var commands = [][]string{
+	{"help", "Shows this help menu"},
+	{"version", "Shows the version of Git Janitor"},
+}
+
+var flags = [][]string{
+	{"-h, --help", "Shows this help menu"},
+	{"-v, --version", "Shows the version of Git Janitor"},
+}
+
+var keyBindings = [][]string{
+	{"↑ / k", "Move cursor up"},
+	{"↓ / j", "Move cursor down"},
+	{"Space", "Toggle selection for the current branch"},
+	{"a", "Select ALL unprotected branches"},
+	{"m", "Select only MERGED branches"},
+	{"c", "CLEAR all selections"},
+	{"Enter", "Proceed to deletion confirmation"},
+	{"q / Ctrl+C", "Quit"},
+}
+
 // printHelp constructs and renders a styled help menu to standard output,
 // then exits the application successfully.
 func printHelp() {
@@ -44,32 +65,25 @@ func printHelp() {
 	sb.WriteString(descStyle.Render("A fast, interactive TUI for cleaning up local Git branches.") + "\n\n")
 
 	headingStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Bold(true).Underline(true)
-
-	sb.WriteString(headingStyle.Render("USAGE:") + "\n")
-	sb.WriteString("  git-janitor [flags]\n\n")
-
-	sb.WriteString(headingStyle.Render("KEYBINDINGS:") + "\n")
-
-	keys := [][]string{
-		{"↑ / k", "Move cursor up"},
-		{"↓ / j", "Move cursor down"},
-		{"Space", "Toggle selection for the current branch"},
-		{"a", "Select ALL unprotected branches"},
-		{"m", "Select only MERGED branches"},
-		{"c", "CLEAR all selections"},
-		{"Enter", "Proceed to deletion confirmation"},
-		{"q / Ctrl+C", "Quit"},
-	}
-
 	keyColumnStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSuccess)).Width(18)
 
-	for _, row := range keys {
+	sb.WriteString(headingStyle.Render("USAGE:") + "\n")
+	sb.WriteString("  git-janitor [command] [flags]\n\n")
+
+	sb.WriteString(headingStyle.Render("COMMANDS:") + "\n")
+	for _, row := range commands {
 		sb.WriteString(fmt.Sprintf("  %s %s\n", keyColumnStyle.Render(row[0]), row[1]))
 	}
-	sb.WriteString("\n")
 
-	sb.WriteString(headingStyle.Render("FLAGS:") + "\n")
-	sb.WriteString(fmt.Sprintf("  %s %s\n", keyColumnStyle.Render("-h, --help"), "Show this help menu"))
+	sb.WriteString("\n" + headingStyle.Render("FLAGS:") + "\n")
+	for _, row := range flags {
+		sb.WriteString(fmt.Sprintf("  %s %s\n", keyColumnStyle.Render(row[0]), row[1]))
+	}
+
+	sb.WriteString("\n" + headingStyle.Render("KEYBINDINGS:") + "\n")
+	for _, row := range keyBindings {
+		sb.WriteString(fmt.Sprintf("  %s %s\n", keyColumnStyle.Render(row[0]), row[1]))
+	}
 
 	helpBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
