@@ -100,10 +100,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if m.state == stateList {
-			var handled bool
-			m, cmd, handled = m.handleCustomListKeys(msg)
-			if handled {
-				return m, cmd
+			// Only intercept custom selection keys if the user is not actively typing in the filter input.
+			if m.list.FilterState() != list.Filtering {
+				var handled bool
+				m, cmd, handled = m.handleCustomListKeys(msg)
+				if handled {
+					return m, cmd
+				}
 			}
 		}
 	}
