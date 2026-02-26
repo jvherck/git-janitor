@@ -34,12 +34,22 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Variables for the ldflags to overwrite during Github Action build
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	// Intercept help flags immediately before executing Git checks.
 	if len(os.Args) > 1 {
 		for _, arg := range os.Args[1:] {
 			if arg == "-h" || arg == "--help" || arg == "help" {
 				printHelp()
+			}
+			if arg == "-v" || arg == "--version" || arg == "version" {
+				printVersion()
 			}
 		}
 	}
