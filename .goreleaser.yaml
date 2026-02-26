@@ -84,3 +84,24 @@ release:
   github:
     owner: jvherck
     name: git-janitor
+  footer: |
+    ## 🚀 How to Update
+    
+    If you already have Git Janitor installed, you can update to this version using your package manager:
+    
+    **macOS / Linux (Homebrew)**
+    ```bash
+    brew upgrade jvherck/tap/git-janitor
+    ```
+    
+    **Windows (Scoop)**
+    ```bash
+    scoop update git-janitor
+    ```
+    
+    **Go Users**
+    ```bash
+    go install github.com/jvherck/git-janitor@latest
+    ```
+    
+    *First time installing? Check out the [full installation guide](https://github.com/jvherck/git-janitor#installation) in the README.*
