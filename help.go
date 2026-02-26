@@ -40,6 +40,7 @@ var commands = [][]string{
 var flags = [][]string{
 	{"-h, --help", "Shows this help menu"},
 	{"-v, --version", "Shows the version of Git Janitor"},
+	{"--dry-run", "Simulate deletion without actually removing branches"},
 }
 
 var keyBindings = [][]string{

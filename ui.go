@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2026 Jan Van Herck (https://github.com/jvherck)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 package main
 
 import (
@@ -61,6 +37,7 @@ type model struct {
 	state   appState
 	width   int
 	height  int
+	dryRun  bool
 }
 
 // Init handles background tasks upon application startup.
@@ -162,11 +139,15 @@ func (m model) handleConfirmUpdate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		for _, listItem := range m.list.Items() {
 			i, ok := listItem.(item)
 			if ok && i.selected && !i.isProtected {
-				cmd := exec.Command("git", "branch", "-D", i.name)
-				if err := cmd.Run(); err != nil {
-					m.errs = append(m.errs, fmt.Sprintf("Failed to delete %s", i.name))
-				} else {
+				if m.dryRun {
 					m.deleted = append(m.deleted, i.name)
+				} else {
+					cmd := exec.Command("git", "branch", "-D", i.name)
+					if err := cmd.Run(); err != nil {
+						m.errs = append(m.errs, fmt.Sprintf("Failed to delete %s", i.name))
+					} else {
+						m.deleted = append(m.deleted, i.name)
+					}
 				}
 			}
 		}
@@ -186,6 +167,10 @@ func (m model) View() string {
 		}
 
 		prompt := fmt.Sprintf("Are you sure you want to force delete %d branches?\n\n(y/N)", selectedCount)
+		if m.dryRun {
+			prompt = fmt.Sprintf("DRY RUN: Would delete %d branches.\nProceed?\n\n(y/N)", selectedCount)
+		}
+
 		confirmBox := confirmStyle.Render(prompt)
 
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, confirmBox)
