@@ -137,6 +137,13 @@ the [issues page](https://github.com/jvherck/git-janitor/issues) if you want to 
 4. Push to the Branch (`git push origin feature/NewFeature`)
 5. Open a Pull Request
 
+## Prior Art
+
+This project shares a name and core mission with an earlier [Git Janitor](https://github.com/grvm/Git-Janitor) built
+by Gaurav Manchanda in 2015. While this Go-based TUI is a completely independent tool designed from scratch for modern
+workflows, I want to acknowledge their original work!
+
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. See [`LICENSE`](https://github.com/jvherck/git-janitor/blob/main/LICENSE) for more
+information.
