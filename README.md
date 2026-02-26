@@ -13,7 +13,6 @@ terminal:
 
 ```bash
 git branch -D feature/one feature/two bugfix/three stale/four
-
 ```
 
 To avoid typing out a massive list, you *can* technically bulk-delete merged branches using native Git alongside bash
@@ -21,7 +20,6 @@ utilities, but it requires chaining together a terrifying command pipeline like 
 
 ```bash
 git branch --merged | egrep -v "(^\*|main|master|dev)" | xargs git branch -d
-
 ```
 
 This native workaround has significant drawbacks:
@@ -58,26 +56,47 @@ Here is why it is a better approach:
 
 ## Installation
 
-Requires [Go](https://go.dev/) 1.20 or later.
+**Option 1: Package Managers (Recommended)**
 
-**Option 1: Install via Go**
+**macOS / Linux (Homebrew)**
+
+```bash
+brew install jvherck/tap/git-janitor
+```
+
+**Windows (Scoop)**
+
+```bash
+scoop bucket add jvherck https://github.com/jvherck/scoop-bucket.git
+scoop install git-janitor
+```
+
+**Option 2: Download Pre-compiled Binaries**
+
+You can download the pre-compiled `.zip` or `.tar.gz` binaries for Windows, macOS, and Linux directly from
+the [GitHub Releases page](https://www.google.com/search?q=https://github.com/jvherck/git-janitor/releases). Extract the
+executable and move it to a directory in your system's `$PATH`.
+
+**Option 3: Install via Go**
+
+If you have [Go](https://go.dev/) 1.24.2 or later installed:
 
 ```bash
 go install github.com/jvherck/git-janitor@latest
-
 ```
 
 *(Ensure your `~/go/bin` directory is in your system's `$PATH`)*
 
-**Option 2: Build from source**
+**Option 4: Build from source**
 
 ```bash
 git clone https://github.com/jvherck/git-janitor.git
 cd git-janitor
 go build -o git-janitor .
-# Move or add the binary to your PATH, e.g., sudo mv git-janitor /usr/local/bin/
-
+# Move the binary to your PATH, e.g., sudo mv git-janitor /usr/local/bin/
 ```
+
+> If you're running on Windows, use `go build -o git-janitor.exe .` instead.
 
 ## Usage
 
@@ -85,8 +104,9 @@ Navigate to any local Git repository in your terminal and run:
 
 ```bash
 git-janitor
-
 ```
+
+> If you're on Windows and you haven't added the git-janitor executable to your PATH use `.\git-janitor.exe`.
 
 ### Keybindings
 
