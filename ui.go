@@ -135,21 +135,33 @@ func (m model) handleCustomListKeys(msg tea.KeyMsg) (model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case "a", "m", "g", "s", "c":
-		// Handle batch selection/deselection operations
+		// Handle batch selection/deselection operations.
+		// These operations only affect the currently visible items (respecting filters).
+		visible := m.list.VisibleItems()
+		isVisible := make(map[string]bool)
+		for _, v := range visible {
+			if i, ok := v.(item); ok {
+				isVisible[i.name] = true
+			}
+		}
+
 		var newItems []list.Item
 		for _, listItem := range m.list.Items() {
 			i := listItem.(item)
 
-			if msg.String() == "c" {
-				// Clear all selections
-				i.selected = false
-			} else if !i.isProtected {
-				// Select based on specific criteria
-				if msg.String() == "a" ||
-					(msg.String() == "m" && i.isMerged) ||
-					(msg.String() == "g" && i.isGone) ||
-					(msg.String() == "s" && i.isStale) {
-					i.selected = true
+			// Only modify the selection if the item is currently visible in the filtered list
+			if isVisible[i.name] {
+				if msg.String() == "c" {
+					// Clear selection for visible items
+					i.selected = false
+				} else if !i.isProtected {
+					// Select based on specific criteria for visible items
+					if msg.String() == "a" ||
+						(msg.String() == "m" && i.isMerged) ||
+						(msg.String() == "g" && i.isGone) ||
+						(msg.String() == "s" && i.isStale) {
+						i.selected = true
+					}
 				}
 			}
 			newItems = append(newItems, i)
