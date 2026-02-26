@@ -11,6 +11,15 @@ import (
 )
 
 func main() {
+	// Intercept help flags immediately before executing Git checks.
+	if len(os.Args) > 1 {
+		for _, arg := range os.Args[1:] {
+			if arg == "-h" || arg == "--help" || arg == "help" {
+				printHelp()
+			}
+		}
+	}
+
 	items, err := getLocalBranches()
 	if err != nil {
 		fmt.Printf("Error fetching branches: %v\nAre you in a git repository?\n", err)
@@ -23,7 +32,7 @@ func main() {
 		errs:    []string{},
 		state:   stateList,
 	}
-	initialModel.list.Title = "Git Branch Janitor"
+	initialModel.list.Title = "Git Janitor"
 
 	p := tea.NewProgram(initialModel, tea.WithAltScreen())
 
