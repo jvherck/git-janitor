@@ -70,6 +70,8 @@ func (m model) Init() tea.Cmd {
 
 // Update acts as the central event loop, processing keypresses and window resizes.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -78,16 +80,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetSize(msg.Width-h, msg.Height-v-2)
 
 	case tea.KeyMsg:
-		switch m.state {
-		case stateList:
-			return m.handleListUpdate(msg)
-		case stateConfirm:
+		if m.state == stateConfirm {
 			return m.handleConfirmUpdate(msg)
+		}
+
+		if m.state == stateList {
+			var handled bool
+			m, cmd, handled = m.handleCustomListKeys(msg)
+			if handled {
+				return m, cmd
+			}
 		}
 	}
 
+	// Passes unhandled messages down to the list component to ensure standard
+	// navigation (up/down/filtering) continues to function.
 	if m.state == stateList {
-		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
 		return m, cmd
 	}
@@ -95,11 +103,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleListUpdate processes keypresses specifically for the branch selection view.
-func (m model) handleListUpdate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// handleCustomListKeys intercepts keys specific to branch operations before the list handles them.
+// The boolean return value determines if the main event loop should halt propagation.
+func (m model) handleCustomListKeys(msg tea.KeyMsg) (model, tea.Cmd, bool) {
 	switch msg.String() {
 	case "ctrl+c", "q":
-		return m, tea.Quit
+		return m, tea.Quit, true
 
 	case " ":
 		if i, ok := m.list.SelectedItem().(item); ok {
@@ -108,6 +117,7 @@ func (m model) handleListUpdate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.list.SetItem(m.list.Index(), i)
 			}
 		}
+		return m, nil, true
 
 	case "a", "m", "c":
 		var newItems []list.Item
@@ -122,7 +132,7 @@ func (m model) handleListUpdate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			newItems = append(newItems, i)
 		}
 		cmd := m.list.SetItems(newItems)
-		return m, cmd
+		return m, cmd, true
 
 	case "enter":
 		hasSelection := false
@@ -135,9 +145,10 @@ func (m model) handleListUpdate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if hasSelection {
 			m.state = stateConfirm
 		}
-		return m, nil
+		return m, nil, true
 	}
-	return m, nil
+
+	return m, nil, false
 }
 
 // handleConfirmUpdate processes keypresses specifically for the deletion confirmation dialog.
