@@ -22,6 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+This file provides the git-related functionality for identifying and filtering branches based on various criteria.
+*/
 package main
 
 import (
@@ -48,6 +51,7 @@ func getCurrentBranch() string {
 // It checks the remote origin's HEAD reference first, falling back to local standard
 // branches defined in constants, and finally defaulting to the standard master branch.
 func getDefaultBranch() string {
+	// Try to get the default branch from origin/HEAD
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "origin/HEAD")
 	out, err := cmd.Output()
 	if err == nil {
@@ -58,10 +62,12 @@ func getDefaultBranch() string {
 		}
 	}
 
+	// Fallback: check if 'main' exists locally
 	if err := exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/"+BranchMain).Run(); err == nil {
 		return BranchMain
 	}
 
+	// Final fallback: assume 'master'
 	return BranchMaster
 }
 
@@ -70,6 +76,7 @@ func getDefaultBranch() string {
 func getMergedBranches(targetBranch string) map[string]struct{} {
 	merged := make(map[string]struct{})
 
+	// List branches that are merged into the target branch
 	cmd := exec.Command("git", "branch", "--format=%(refname:short)", "--merged", targetBranch)
 	out, err := cmd.Output()
 	if err != nil {
@@ -88,12 +95,14 @@ func getMergedBranches(targetBranch string) map[string]struct{} {
 }
 
 // isProtectedBranch evaluates a branch name against default safe branches
-// and user-provided protection patterns.
+// (dev, current, default) and user-provided protection patterns (e.g., release-*).
 func isProtectedBranch(name, currentBranch, defaultBranch, customPatterns string) bool {
+	// Always protect dev, the current branch, and the default branch
 	if name == BranchDev || name == currentBranch || name == defaultBranch {
 		return true
 	}
 
+	// Check against user-defined patterns
 	if customPatterns != "" {
 		patterns := strings.Split(customPatterns, ",")
 		for _, p := range patterns {
@@ -101,6 +110,7 @@ func isProtectedBranch(name, currentBranch, defaultBranch, customPatterns string
 			if p == "" {
 				continue
 			}
+			// Supports shell-style wildcards via filepath.Match
 			matched, err := filepath.Match(p, name)
 			if err == nil && matched {
 				return true
@@ -112,14 +122,20 @@ func isProtectedBranch(name, currentBranch, defaultBranch, customPatterns string
 }
 
 // getLocalBranches interacts with the Git CLI to retrieve all local branches
-// and evaluates their detailed status parameters.
+// and evaluates their detailed status parameters like age, upstream status, and merge state.
 func getLocalBranches(protectFlag string, staleDays float64) ([]list.Item, error) {
 	currentBranch := getCurrentBranch()
 	defaultBranch := getDefaultBranch()
 	mergedBranches := getMergedBranches(defaultBranch)
 
-	exec.Command("git", "fetch", "--prune").Run()
+	// Prune remote-tracking branches to ensure upstream status is accurate
+	// This will mark local branches without an upstream as "gone"
+	err := exec.Command("git", "fetch", "--prune").Run()
+	if err != nil {
+		// Ignore error as user probably is not connected to the internet, not the end of the world...
+	}
 
+	// Format used to extract branch details efficiently in one call
 	format := "%(refname:short)|||%(upstream:track)|||%(committerdate:relative)|||%(committerdate:unix)"
 	cmd := exec.Command("git", "for-each-ref", "--format="+format, "refs/heads/")
 	out, err := cmd.Output()
@@ -146,8 +162,8 @@ func getLocalBranches(protectFlag string, staleDays float64) ([]list.Item, error
 		}
 
 		name := strings.TrimSpace(parts[0])
-		upstreamStatus := parts[1]
-		relativeDate := parts[2]
+		upstreamStatus := parts[1] // Contains info if upstream is [gone]
+		relativeDate := parts[2]   // Human-readable age (e.g., "2 weeks ago")
 		unixStr := strings.TrimSpace(parts[3])
 
 		if name == "" {
@@ -158,6 +174,7 @@ func getLocalBranches(protectFlag string, staleDays float64) ([]list.Item, error
 		_, isMerged := mergedBranches[name]
 		isGone := strings.Contains(upstreamStatus, "[gone]")
 
+		// Evaluate staleness based on the provided threshold
 		isStale := false
 		if unixTime, err := strconv.ParseInt(unixStr, 10, 64); err == nil {
 			if now-unixTime > staleSeconds {

@@ -22,6 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+This file implements the User Interface (UI) using the Bubble Tea framework. It handles user interactions, rendering
+the branch list, and managing the confirmation dialog for branch deletion.
+*/
 package main
 
 import (
@@ -38,13 +42,18 @@ import (
 type appState int
 
 const (
-	stateList appState = iota
-	stateConfirm
+	stateList    appState = iota // Primary view: selecting branches to delete
+	stateConfirm                 // Secondary view: confirming the deletion of selected branches
 )
 
 var (
-	docStyle     = lipgloss.NewStyle().Margin(DocMarginVertical, DocMarginHorizontal)
-	footerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorTextMuted))
+	// docStyle defines the basic layout margins for the main application window.
+	docStyle = lipgloss.NewStyle().Margin(DocMarginVertical, DocMarginHorizontal)
+
+	// footerStyle defines the appearance of the keybinding hints at the bottom of the list.
+	footerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorTextMuted))
+
+	// confirmStyle defines the appearance of the deletion confirmation dialog.
 	confirmStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color(ColorPrimary)).
@@ -52,34 +61,38 @@ var (
 			Align(lipgloss.Center)
 )
 
-// model encapsulates the complete application state.
+// model encapsulates the complete application state for the Bubble Tea framework.
 type model struct {
-	list    list.Model
-	deleted []string
-	errs    []string
-	state   appState
-	width   int
-	height  int
-	dryRun  bool
+	list    list.Model // The core list component for displaying branches
+	deleted []string   // Names of branches successfully deleted (or marked for deletion in dry-run)
+	errs    []string   // Error messages encountered during branch deletion
+	state   appState   // The current UI view
+	width   int        // Current terminal window width
+	height  int        // Current terminal window height
+	dryRun  bool       // If true, no actual deletion occurs
 }
 
 // Init handles background tasks upon application startup.
+// It returns a tea.Cmd which is executed when the program starts.
 func (m model) Init() tea.Cmd {
 	return nil
 }
 
-// Update acts as the central event loop, processing keypresses and window resizes.
+// Update acts as the central event loop, processing keypresses, window resizes, and other messages.
+// It updates the model and returns a tea.Cmd for any side effects.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		// Handle window resizing by updating list dimensions
 		m.width = msg.Width
 		m.height = msg.Height
 		h, v := docStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v-2)
 
 	case tea.KeyMsg:
+		// Logic depends on the current window state
 		if m.state == stateConfirm {
 			return m.handleConfirmUpdate(msg)
 		}
@@ -103,7 +116,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleCustomListKeys intercepts keys specific to branch operations before the list handles them.
+// handleCustomListKeys intercepts keys specific to branch operations (selection, filtering)
+// before the list component handles them.
 // The boolean return value determines if the main event loop should halt propagation.
 func (m model) handleCustomListKeys(msg tea.KeyMsg) (model, tea.Cmd, bool) {
 	switch msg.String() {
@@ -111,6 +125,7 @@ func (m model) handleCustomListKeys(msg tea.KeyMsg) (model, tea.Cmd, bool) {
 		return m, tea.Quit, true
 
 	case " ":
+		// Toggle selection for the currently highlighted branch
 		if i, ok := m.list.SelectedItem().(item); ok {
 			if !i.isProtected {
 				i.selected = !i.selected
@@ -120,13 +135,16 @@ func (m model) handleCustomListKeys(msg tea.KeyMsg) (model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case "a", "m", "g", "s", "c":
+		// Handle batch selection/deselection operations
 		var newItems []list.Item
 		for _, listItem := range m.list.Items() {
 			i := listItem.(item)
 
 			if msg.String() == "c" {
+				// Clear all selections
 				i.selected = false
 			} else if !i.isProtected {
+				// Select based on specific criteria
 				if msg.String() == "a" ||
 					(msg.String() == "m" && i.isMerged) ||
 					(msg.String() == "g" && i.isGone) ||
@@ -140,6 +158,7 @@ func (m model) handleCustomListKeys(msg tea.KeyMsg) (model, tea.Cmd, bool) {
 		return m, cmd, true
 
 	case "enter":
+		// Transition to confirmation state if any branches are selected
 		hasSelection := false
 		for _, listItem := range m.list.Items() {
 			if i, ok := listItem.(item); ok && i.selected {
@@ -160,10 +179,12 @@ func (m model) handleCustomListKeys(msg tea.KeyMsg) (model, tea.Cmd, bool) {
 func (m model) handleConfirmUpdate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch strings.ToLower(msg.String()) {
 	case "ctrl+c", "q", "n", "esc", "enter":
+		// Abort deletion and return to the list
 		m.state = stateList
 		return m, nil
 
 	case "y":
+		// Execute deletion for all selected branches
 		for _, listItem := range m.list.Items() {
 			i, ok := listItem.(item)
 			if ok && i.selected && !i.isProtected {
@@ -187,6 +208,7 @@ func (m model) handleConfirmUpdate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // View evaluates the current application state and renders the corresponding UI layout.
 func (m model) View() string {
 	if m.state == stateConfirm {
+		// Render the confirmation dialog
 		selectedCount := 0
 		for _, listItem := range m.list.Items() {
 			if i, ok := listItem.(item); ok && i.selected {
@@ -204,6 +226,7 @@ func (m model) View() string {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, confirmBox)
 	}
 
+	// Render the primary branch list with footer hints
 	footer := footerStyle.Render("  a: all • m: merged • g: gone • s: stale • c: clear")
 	return docStyle.Render(m.list.View() + "\n" + footer)
 }

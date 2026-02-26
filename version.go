@@ -22,6 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+This file contains the functionality for displaying the version information of the Git Janitor application.
+*/
 package main
 
 import (

@@ -22,39 +22,43 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+This file defines the core constants used throughout the Git Janitor application, including UI colors, layout
+dimensions, interactive symbols, and default branch names.
+*/
 package main
 
-// Color definitions for the application's UI.
+// UI color definitions for the application's interface.
 // These accept standard ANSI color codes (e.g., "62") or Hex codes (e.g., "#8839ef").
 const (
-	ColorPrimary   = "#38BDF8" // Used for primary borders and the confirm dialog
-	ColorSecondary = "#7DD3FC" // Used for the summary box border
-	ColorTextMuted = "#64748B" // Used for footer help text
-	ColorSuccess   = "#4ADE80" // Used for success message headers
+	ColorPrimary   = "#38BDF8" // Used for primary borders, selected item titles, and the confirm dialog
+	ColorSecondary = "#7DD3FC" // Used for selected item descriptions and the summary box border
+	ColorTextMuted = "#64748B" // Used for footer help text and version details
+	ColorSuccess   = "#4ADE80" // Used for success message headers and help key columns
 	ColorWarning   = "#FB923C" // Used for error and warning message headers
-	ColorTitle     = "#FBBF24" // Used for the summary title text
+	ColorTitle     = "#FBBF24" // Used for the summary and help menu title text
 )
 
-// Layout and sizing constraints to maintain consistent spacing.
+// Layout and sizing constraints to maintain consistent spacing across different views.
 const (
-	DocMarginVertical        = 1
-	DocMarginHorizontal      = 2
-	DialogPaddingVertical    = 1
-	ConfirmPaddingHorizontal = 4
-	SummaryPaddingHorizontal = 3
-	SummaryBoxWidth          = 50
+	DocMarginVertical        = 1  // Vertical margin around the main list
+	DocMarginHorizontal      = 2  // Horizontal margin around the main list
+	DialogPaddingVertical    = 1  // Vertical padding inside dialog boxes
+	ConfirmPaddingHorizontal = 4  // Horizontal padding inside the confirmation dialog
+	SummaryPaddingHorizontal = 3  // Horizontal padding inside the final summary box
+	SummaryBoxWidth          = 50 // Fixed width for the final summary box
 )
 
-// UI text symbols for the interactive list.
+// UI text symbols for the interactive branch list.
 const (
-	SymbolProtected  = "🔒  "
-	SymbolSelected   = "[x] "
-	SymbolUnselected = "[ ] "
+	SymbolProtected  = "🔒  "  // Prefix for branches that cannot be deleted
+	SymbolSelected   = "[x] " // Prefix for branches marked for deletion
+	SymbolUnselected = "[ ] " // Prefix for branches not currently selected
 )
 
 // Standard branch names used for fallback checks and default protections.
 const (
-	BranchMain   = "main"
-	BranchMaster = "master"
-	BranchDev    = "dev"
+	BranchMain   = "main"   // Standard primary branch name
+	BranchMaster = "master" // Legacy/Standard primary branch name
+	BranchDev    = "dev"    // Standard development branch name
 )

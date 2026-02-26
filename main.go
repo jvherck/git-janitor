@@ -22,6 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+This file provides the entry point for Git Janitor, an interactive TUI tool designed to help developers clean up their
+local Git branches efficiently.
+*/
 package main
 
 import (
@@ -35,13 +39,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Variables for the ldflags to overwrite during Github Action build
+// Variables for the ldflags to overwrite during Github Action build.
+// These are used to provide versioning information to the user.
 var (
 	version = "dev"
 	commit  = "none"
 	date    = "unknown"
 )
 
+// main is the entry point of the application. It parses command-line flags,
+// initializes the branch list, and starts the Bubble Tea TUI.
 func main() {
 	var showHelp bool
 	flag.BoolVar(&showHelp, "h", false, "Shows this help menu")
@@ -60,9 +67,11 @@ func main() {
 	var staleDays float64
 	flag.Float64Var(&staleDays, "stale-days", 30, "Number of days before a branch is considered stale")
 
+	// Override default usage to show our custom help menu
 	flag.Usage = printHelp
 	flag.Parse()
 
+	// Check for positional commands like 'help' or 'version'
 	if flag.NArg() > 0 {
 		cmd := flag.Arg(0)
 		if cmd == "help" {
@@ -79,12 +88,14 @@ func main() {
 		printVersion()
 	}
 
+	// Fetch local branches based on protection and staleness criteria
 	items, err := getLocalBranches(protectFlag, staleDays)
 	if err != nil {
 		fmt.Printf("Error fetching branches: %v\nAre you in a git repository?\n", err)
 		os.Exit(1)
 	}
 
+	// Configure the list delegate for consistent styling
 	delegate := list.NewDefaultDelegate()
 
 	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
@@ -95,12 +106,14 @@ func main() {
 		Foreground(lipgloss.Color(ColorSecondary)).
 		BorderLeftForeground(lipgloss.Color(ColorPrimary))
 
+	// Initialize the list component
 	l := list.New(items, delegate, 0, 0)
 	l.Title = "Git Janitor"
 	if dryRun {
 		l.Title += " (DRY RUN)"
 	}
 
+	// Apply custom styling to the list
 	l.Styles.Title = lipgloss.NewStyle().
 		Background(lipgloss.Color(ColorPrimary)).
 		Foreground(lipgloss.Color("#0F172A")).
@@ -108,6 +121,7 @@ func main() {
 	l.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorTitle))
 	l.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary))
 
+	// Set up the initial application model
 	initialModel := model{
 		list:    l,
 		deleted: []string{},
@@ -116,6 +130,7 @@ func main() {
 		dryRun:  dryRun,
 	}
 
+	// Start the Bubble Tea program with the alternate screen buffer
 	p := tea.NewProgram(initialModel, tea.WithAltScreen())
 
 	finalModel, err := p.Run()
@@ -124,6 +139,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Print a summary of actions taken after the TUI exits
 	if m, ok := finalModel.(model); ok {
 		printSummary(m)
 	}

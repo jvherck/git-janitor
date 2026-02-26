@@ -22,22 +22,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+This file defines the 'item' struct, which implements the list.Item interface from the charmbracelet/bubbles/list
+package. It represents a single branch entry in the TUI list.
+*/
 package main
 
 import "strings"
 
 // item represents a single selectable branch row within the UI list.
+// It tracks the branch name, user selection state, and various metadata
+// flags used for filtering and displaying status information.
 type item struct {
-	name        string
-	selected    bool
-	isProtected bool
-	isMerged    bool
-	isGone      bool
-	isStale     bool
-	age         string
+	name        string // The Git branch name
+	selected    bool   // Whether the user has marked this branch for deletion
+	isProtected bool   // Whether the branch is protected (cannot be deleted)
+	isMerged    bool   // Whether the branch has been merged into the default branch
+	isGone      bool   // Whether the upstream tracking branch no longer exists
+	isStale     bool   // Whether the branch exceeds the stale days threshold
+	age         string // Human-readable relative time of the last commit
 }
 
 // Title returns the primary formatted text for the list item.
+// It includes a status symbol indicating its state (e.g.: protected, selected, unselected).
 func (i item) Title() string {
 	if i.isProtected {
 		return SymbolProtected + i.name
@@ -49,6 +56,7 @@ func (i item) Title() string {
 }
 
 // Description provides contextual secondary text rendered below the title.
+// It lists status tags (like Merged, Gone, Stale) and the last active date.
 func (i item) Description() string {
 	if i.isProtected {
 		return "Protected or active branch (cannot be deleted)"
@@ -78,6 +86,7 @@ func (i item) Description() string {
 }
 
 // FilterValue determines the string that the list's fuzzy finder evaluates against.
+// In this case, we filter by the branch name.
 func (i item) FilterValue() string {
 	return i.name
 }
