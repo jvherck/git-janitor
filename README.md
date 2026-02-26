@@ -2,6 +2,8 @@
 
 A fast, interactive Terminal User Interface (TUI) for cleaning up local Git branches.
 
+[![git-janitor-showcase.gif](assets/git-janitor-showcase.gif)](/assets/git-janitor-showcase.gif)
+
 ## The Problem
 
 If you actively review PRs locally or juggle multiple feature branches, your local repository quickly accumulates stale,
