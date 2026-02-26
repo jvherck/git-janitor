@@ -26,7 +26,10 @@ package main
 
 import (
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -84,14 +87,41 @@ func getMergedBranches(targetBranch string) map[string]struct{} {
 	return merged
 }
 
-// getLocalBranches interacts with the Git CLI to retrieve all local branches,
-// evaluates their protected and merged status, and formats them as UI list items.
-func getLocalBranches() ([]list.Item, error) {
+// isProtectedBranch evaluates a branch name against default safe branches
+// and user-provided protection patterns.
+func isProtectedBranch(name, currentBranch, defaultBranch, customPatterns string) bool {
+	if name == BranchDev || name == currentBranch || name == defaultBranch {
+		return true
+	}
+
+	if customPatterns != "" {
+		patterns := strings.Split(customPatterns, ",")
+		for _, p := range patterns {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			matched, err := filepath.Match(p, name)
+			if err == nil && matched {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// getLocalBranches interacts with the Git CLI to retrieve all local branches
+// and evaluates their detailed status parameters.
+func getLocalBranches(protectFlag string, staleDays float64) ([]list.Item, error) {
 	currentBranch := getCurrentBranch()
 	defaultBranch := getDefaultBranch()
 	mergedBranches := getMergedBranches(defaultBranch)
 
-	cmd := exec.Command("git", "branch", "--format=%(refname:short)")
+	exec.Command("git", "fetch", "--prune").Run()
+
+	format := "%(refname:short)|||%(upstream:track)|||%(committerdate:relative)|||%(committerdate:unix)"
+	cmd := exec.Command("git", "for-each-ref", "--format="+format, "refs/heads/")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -104,20 +134,45 @@ func getLocalBranches() ([]list.Item, error) {
 		return []list.Item{}, nil
 	}
 
-	branchNames := strings.Split(rawOutput, "\n")
+	lines := strings.Split(rawOutput, "\n")
 	var items []list.Item
+	now := time.Now().Unix()
+	staleSeconds := int64(staleDays * 24 * 60 * 60)
 
-	for _, name := range branchNames {
-		name = strings.TrimSpace(name)
+	for _, line := range lines {
+		parts := strings.Split(line, "|||")
+		if len(parts) != 4 {
+			continue
+		}
 
-		isProtected := name == BranchDev || name == currentBranch || name == defaultBranch
+		name := strings.TrimSpace(parts[0])
+		upstreamStatus := parts[1]
+		relativeDate := parts[2]
+		unixStr := strings.TrimSpace(parts[3])
+
+		if name == "" {
+			continue
+		}
+
+		isProtected := isProtectedBranch(name, currentBranch, defaultBranch, protectFlag)
 		_, isMerged := mergedBranches[name]
+		isGone := strings.Contains(upstreamStatus, "[gone]")
+
+		isStale := false
+		if unixTime, err := strconv.ParseInt(unixStr, 10, 64); err == nil {
+			if now-unixTime > staleSeconds {
+				isStale = true
+			}
+		}
 
 		items = append(items, item{
 			name:        name,
 			selected:    false,
 			isProtected: isProtected,
 			isMerged:    isMerged,
+			isGone:      isGone,
+			isStale:     isStale,
+			age:         relativeDate,
 		})
 	}
 

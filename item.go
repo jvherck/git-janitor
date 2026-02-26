@@ -24,13 +24,17 @@ SOFTWARE.
 
 package main
 
+import "strings"
+
 // item represents a single selectable branch row within the UI list.
-// It implements the bubbles/list.Item interface.
 type item struct {
 	name        string
 	selected    bool
 	isProtected bool
 	isMerged    bool
+	isGone      bool
+	isStale     bool
+	age         string
 }
 
 // Title returns the primary formatted text for the list item.
@@ -50,10 +54,26 @@ func (i item) Description() string {
 		return "Protected or active branch (cannot be deleted)"
 	}
 
-	desc := "Press space to toggle selection"
+	var tags []string
 	if i.isMerged {
-		desc += " | Merged"
+		tags = append(tags, "Merged")
 	}
+	if i.isGone {
+		tags = append(tags, "Gone (Upstream deleted)")
+	}
+	if i.isStale {
+		tags = append(tags, "Stale")
+	}
+
+	desc := "Press space to toggle"
+	if len(tags) > 0 {
+		desc += " | " + strings.Join(tags, ", ")
+	}
+
+	if i.age != "" {
+		desc += " | Last active: " + i.age
+	}
+
 	return desc
 }
 

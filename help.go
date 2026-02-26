@@ -41,6 +41,8 @@ var flags = [][]string{
 	{"-h, --help", "Shows this help menu"},
 	{"-v, --version", "Shows the version of Git Janitor"},
 	{"--dry-run", "Simulate deletion without actually removing branches"},
+	{"--protect", "Comma-separated list of branches to protect, supports * wildcards (e.g. 'qa,release-*')"},
+	{"--stale-days", "Number of days before a branch is considered stale (default 30)"},
 }
 
 var keyBindings = [][]string{
@@ -48,7 +50,9 @@ var keyBindings = [][]string{
 	{"↓ / j", "Move cursor down"},
 	{"Space", "Toggle selection for the current branch"},
 	{"a", "Select ALL unprotected branches"},
-	{"m", "Select only MERGED branches"},
+	{"m", "Select MERGED branches"},
+	{"g", "Select GONE branches (upstream deleted)"},
+	{"s", "Select STALE branches"},
 	{"c", "CLEAR all selections"},
 	{"Enter", "Proceed to deletion confirmation"},
 	{"q / Ctrl+C", "Quit"},
