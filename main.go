@@ -50,13 +50,36 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize a custom delegate to override the default styling.
+	delegate := list.NewDefaultDelegate()
+
+	// Override the selected item colors.
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
+		Foreground(lipgloss.Color(ColorPrimary)).
+		BorderLeftForeground(lipgloss.Color(ColorPrimary))
+
+	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
+		Foreground(lipgloss.Color(ColorSecondary)).
+		BorderLeftForeground(lipgloss.Color(ColorPrimary))
+
+	// Instantiate the list with the custom delegate.
+	l := list.New(items, delegate, 0, 0)
+	l.Title = "Git Janitor"
+
+	// Override the default list title and filter styling.
+	l.Styles.Title = lipgloss.NewStyle().
+		Background(lipgloss.Color(ColorPrimary)).
+		Foreground(lipgloss.Color("#0F172A")). // Dark slate for high contrast readability
+		Padding(0, 1)
+	l.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorTitle))
+	l.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary))
+
 	initialModel := model{
-		list:    list.New(items, list.NewDefaultDelegate(), 0, 0),
+		list:    l,
 		deleted: []string{},
 		errs:    []string{},
 		state:   stateList,
 	}
-	initialModel.list.Title = "Git Janitor"
 
 	p := tea.NewProgram(initialModel, tea.WithAltScreen())
 

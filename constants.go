@@ -27,12 +27,12 @@ package main
 // Color definitions for the application's UI.
 // These accept standard ANSI color codes (e.g., "62") or Hex codes (e.g., "#8839ef").
 const (
-	ColorPrimary   = "62"  // Used for primary borders and the confirm dialog
-	ColorSecondary = "63"  // Used for the summary box border
-	ColorTextMuted = "241" // Used for footer help text
-	ColorSuccess   = "42"  // Used for success message headers
-	ColorWarning   = "204" // Used for error and warning message headers
-	ColorTitle     = "205" // Used for the summary title text
+	ColorPrimary   = "#38BDF8" // Used for primary borders and the confirm dialog
+	ColorSecondary = "#7DD3FC" // Used for the summary box border
+	ColorTextMuted = "#64748B" // Used for footer help text
+	ColorSuccess   = "#4ADE80" // Used for success message headers
+	ColorWarning   = "#FB923C" // Used for error and warning message headers
+	ColorTitle     = "#FBBF24" // Used for the summary title text
 )
 
 // Layout and sizing constraints to maintain consistent spacing.
