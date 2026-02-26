@@ -28,6 +28,15 @@ dimensions, interactive symbols, and default branch names.
 */
 package main
 
+// SortMode defines the available sorting orders for the branch list.
+type SortMode int
+
+const (
+	SortAlphabetical SortMode = iota
+	SortLatestCommits
+	SortOldestCommits
+)
+
 // UI color definitions for the application's interface.
 // These accept standard ANSI color codes (e.g., "62") or Hex codes (e.g., "#8839ef").
 const (

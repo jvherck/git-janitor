@@ -176,20 +176,23 @@ func getLocalBranches(protectFlag string, staleDays float64) ([]list.Item, error
 
 		// Evaluate staleness based on the provided threshold
 		isStale := false
-		if unixTime, err := strconv.ParseInt(unixStr, 10, 64); err == nil {
+		var unixTime int64
+		if u, err := strconv.ParseInt(unixStr, 10, 64); err == nil {
+			unixTime = u
 			if now-unixTime > staleSeconds {
 				isStale = true
 			}
 		}
 
 		items = append(items, item{
-			name:        name,
-			selected:    false,
-			isProtected: isProtected,
-			isMerged:    isMerged,
-			isGone:      isGone,
-			isStale:     isStale,
-			age:         relativeDate,
+			name:           name,
+			selected:       false,
+			isProtected:    isProtected,
+			isMerged:       isMerged,
+			isGone:         isGone,
+			isStale:        isStale,
+			age:            relativeDate,
+			lastCommitUnix: unixTime,
 		})
 	}
 

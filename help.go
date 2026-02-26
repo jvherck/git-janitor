@@ -61,6 +61,7 @@ var keyBindings = [][]string{
 	{"g", "Select GONE branches (those whose upstream remote branch was deleted)"},
 	{"s", "Select STALE branches (no commits within the stale-days threshold)"},
 	{"c", "CLEAR all current selections"},
+	{"o", "Cycle through sort orders (Alphabetical, Latest Commits, Oldest Commits)"},
 	{"Enter", "Proceed to deletion confirmation screen"},
 	{"q / Ctrl+C", "Quit the application"},
 }

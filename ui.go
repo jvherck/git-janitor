@@ -31,6 +31,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -63,13 +64,14 @@ var (
 
 // model encapsulates the complete application state for the Bubble Tea framework.
 type model struct {
-	list    list.Model // The core list component for displaying branches
-	deleted []string   // Names of branches successfully deleted (or marked for deletion in dry-run)
-	errs    []string   // Error messages encountered during branch deletion
-	state   appState   // The current UI view
-	width   int        // Current terminal window width
-	height  int        // Current terminal window height
-	dryRun  bool       // If true, no actual deletion occurs
+	list     list.Model // The core list component for displaying branches
+	deleted  []string   // Names of branches successfully deleted (or marked for deletion in dry-run)
+	errs     []string   // Error messages encountered during branch deletion
+	state    appState   // The current UI view
+	width    int        // Current terminal window width
+	height   int        // Current terminal window height
+	dryRun   bool       // If true, no actual deletion occurs
+	sortMode SortMode   // Current sorting order of the branch list
 }
 
 // Init handles background tasks upon application startup.
@@ -116,7 +118,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleCustomListKeys intercepts keys specific to branch operations (selection, filtering)
+// handleCustomListKeys intercepts keys specific to branch operations (selection, filtering, sorting)
 // before the list component handles them.
 // The boolean return value determines if the main event loop should halt propagation.
 func (m model) handleCustomListKeys(msg tea.KeyMsg) (model, tea.Cmd, bool) {
@@ -167,6 +169,28 @@ func (m model) handleCustomListKeys(msg tea.KeyMsg) (model, tea.Cmd, bool) {
 			newItems = append(newItems, i)
 		}
 		cmd := m.list.SetItems(newItems)
+		return m, cmd, true
+
+	case "o":
+		// Cycle through sorting modes: Alphabetical -> Newest First -> Oldest First
+		m.sortMode = (m.sortMode + 1) % 3
+
+		items := m.list.Items()
+		sort.Slice(items, func(i, j int) bool {
+			a := items[i].(item)
+			b := items[j].(item)
+
+			switch m.sortMode {
+			case SortLatestCommits:
+				return a.lastCommitUnix > b.lastCommitUnix
+			case SortOldestCommits:
+				return a.lastCommitUnix < b.lastCommitUnix
+			default:
+				return a.name < b.name
+			}
+		})
+
+		cmd := m.list.SetItems(items)
 		return m, cmd, true
 
 	case "enter":
@@ -239,6 +263,16 @@ func (m model) View() string {
 	}
 
 	// Render the primary branch list with footer hints
-	footer := footerStyle.Render("  a: all • m: merged • g: gone • s: stale • c: clear")
+	var sortHint string
+	switch m.sortMode {
+	case SortLatestCommits:
+		sortHint = "Latest Commits"
+	case SortOldestCommits:
+		sortHint = "Oldest Commits"
+	default:
+		sortHint = "Alphabetical"
+	}
+
+	footer := footerStyle.Render(fmt.Sprintf("  a: all • m: merged • g: gone • s: stale • c: clear • o: sort (%s)", sortHint))
 	return docStyle.Render(m.list.View() + "\n" + footer)
 }

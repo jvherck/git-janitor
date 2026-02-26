@@ -34,13 +34,14 @@ import "strings"
 // It tracks the branch name, user selection state, and various metadata
 // flags used for filtering and displaying status information.
 type item struct {
-	name        string // The Git branch name
-	selected    bool   // Whether the user has marked this branch for deletion
-	isProtected bool   // Whether the branch is protected (cannot be deleted)
-	isMerged    bool   // Whether the branch has been merged into the default branch
-	isGone      bool   // Whether the upstream tracking branch no longer exists
-	isStale     bool   // Whether the branch exceeds the stale days threshold
-	age         string // Human-readable relative time of the last commit
+	name           string // The Git branch name
+	selected       bool   // Whether the user has marked this branch for deletion
+	isProtected    bool   // Whether the branch is protected (cannot be deleted)
+	isMerged       bool   // Whether the branch has been merged into the default branch
+	isGone         bool   // Whether the upstream tracking branch no longer exists
+	isStale        bool   // Whether the branch exceeds the stale days threshold
+	age            string // Human-readable relative time of the last commit
+	lastCommitUnix int64  // Unix timestamp of the last commit (used for sorting)
 }
 
 // Title returns the primary formatted text for the list item.
@@ -59,7 +60,11 @@ func (i item) Title() string {
 // It lists status tags (like Merged, Gone, Stale) and the last active date.
 func (i item) Description() string {
 	if i.isProtected {
-		return "Protected or active branch (cannot be deleted)"
+		d := "Protected or active branch (cannot be deleted)"
+		if i.age != "" {
+			d += " | Last active: " + i.age
+		}
+		return d
 	}
 
 	var tags []string
