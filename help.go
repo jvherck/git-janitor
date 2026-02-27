@@ -40,6 +40,7 @@ import (
 var commands = [][]string{
 	{"help", "Shows this help menu"},
 	{"version", "Shows the version of Git Janitor"},
+	{"update", "Update Git Janitor to the latest version"},
 }
 
 // flags lists the available CLI flags and their descriptions.
@@ -104,6 +105,7 @@ func printHelp() {
 
 	// Examples section for better clarity
 	sb.WriteString("\n" + headingStyle.Render("EXAMPLES:") + "\n")
+	sb.WriteString("  git-janitor update\n")
 	sb.WriteString("  git-janitor --dry-run\n")
 	sb.WriteString("  git-janitor --protect \"production,release-*\"\n")
 	sb.WriteString("  git-janitor --stale-days 14\n")

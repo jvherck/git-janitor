@@ -71,13 +71,15 @@ func main() {
 	flag.Usage = printHelp
 	flag.Parse()
 
-	// Check for positional commands like 'help' or 'version'
+	// Check for positional commands like 'help', 'version', or 'update'
 	if flag.NArg() > 0 {
 		cmd := flag.Arg(0)
 		if cmd == "help" {
 			showHelp = true
 		} else if cmd == "version" {
 			showVersion = true
+		} else if cmd == "update" {
+			runUpdate()
 		}
 	}
 
@@ -87,6 +89,9 @@ func main() {
 	if showVersion {
 		printVersion()
 	}
+
+	// Check for updates silently and print a one-line notice if a newer version exists
+	checkForUpdateNotification()
 
 	// Fetch local branches based on protection and staleness criteria
 	items, err := getLocalBranches(protectFlag, staleDays)
