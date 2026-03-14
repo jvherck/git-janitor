@@ -32,9 +32,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -71,7 +73,7 @@ func main() {
 	flag.Usage = printHelp
 	flag.Parse()
 
-	// Check for positional commands like 'help', 'version', or 'update'
+	// Check for positional commands
 	if flag.NArg() > 0 {
 		cmd := flag.Arg(0)
 		if cmd == "help" {
@@ -90,13 +92,10 @@ func main() {
 		printVersion()
 	}
 
-	// Check for updates silently and print a one-line notice if a newer version exists
-	checkForUpdateNotification()
-
-	// Fetch local branches based on protection and staleness criteria
-	items, err := getLocalBranches(protectFlag, staleDays)
-	if err != nil {
-		fmt.Printf("Error fetching branches: %v\nAre you in a git repository?\n", err)
+	// Verify we are in a git repository before launching the UI
+	if err := exec.Command("git", "rev-parse", "--is-inside-work-tree").Run(); err != nil {
+		warnStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning)).Bold(true)
+		fmt.Println(warnStyle.Render("❌ Error: Not inside a git repository."))
 		os.Exit(1)
 	}
 
@@ -112,7 +111,7 @@ func main() {
 		BorderLeftForeground(lipgloss.Color(ColorPrimary))
 
 	// Initialize the list component
-	l := list.New(items, delegate, 0, 0)
+	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.Title = "Git Janitor"
 	if dryRun {
 		l.Title += " (DRY RUN)"
@@ -125,14 +124,21 @@ func main() {
 		Padding(0, 1)
 	l.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorTitle))
 	l.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary))
+	// Configure spinner
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary))
 
 	// Set up the initial application model
 	initialModel := model{
-		list:    l,
-		deleted: []string{},
-		errs:    []string{},
-		state:   stateList,
-		dryRun:  dryRun,
+		list:        l,
+		spinner:     s,
+		deleted:     []string{},
+		errs:        []string{},
+		state:       stateLoading,
+		dryRun:      dryRun,
+		protectFlag: protectFlag,
+		staleDays:   staleDays,
 	}
 
 	// Start the Bubble Tea program with the alternate screen buffer
@@ -153,6 +159,11 @@ func main() {
 // printSummary processes the final model state and outputs a formatted
 // results table to standard out after the TUI has closed.
 func printSummary(m model) {
+	if m.updateNotice != "" {
+		fmt.Println(m.updateNotice)
+		fmt.Println()
+	}
+
 	if len(m.deleted) == 0 && len(m.errs) == 0 {
 		return
 	}

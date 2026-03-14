@@ -38,6 +38,7 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -129,29 +130,33 @@ func normalizeVersion(v string) string {
 	return strings.TrimPrefix(v, "v")
 }
 
-// checkForUpdateNotification fetches the latest version and, if a newer version exists,
-// prints a styled one-line notice to stdout. It is intentionally fire-and-forget so it
-// never blocks the normal TUI startup.
-func checkForUpdateNotification() {
-	// Skip the check entirely for dev builds that have no real version.
-	if version == "dev" || version == "" {
-		return
-	}
+// checkUpdateMsg is the message returned by checkUpdateCmd.
+type checkUpdateMsg struct {
+	notice string
+}
 
-	latest, err := fetchLatestVersion()
-	if err != nil || latest == "" {
-		return
-	}
+// checkUpdateCmd creates a tea.Cmd that checks for updates asynchronously.
+func checkUpdateCmd() tea.Cmd {
+	return func() tea.Msg {
+		if version == "dev" || version == "" {
+			return checkUpdateMsg{notice: ""}
+		}
 
-	if normalizeVersion(latest) != normalizeVersion(version) {
-		infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorTitle)).Bold(true)
-		mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorTextMuted))
-		fmt.Println(
-			infoStyle.Render("  ✦ Update available!") +
+		latest, err := fetchLatestVersion()
+		if err != nil || latest == "" {
+			return checkUpdateMsg{notice: ""}
+		}
+
+		if normalizeVersion(latest) != normalizeVersion(version) {
+			infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorTitle)).Bold(true)
+			mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorTextMuted))
+			notice := infoStyle.Render("  ✦ Update available!") +
 				mutedStyle.Render(fmt.Sprintf(" %s → %s  ", normalizeVersion(version), latest)) +
-				mutedStyle.Render("Run: git-janitor update"),
-		)
-		fmt.Println()
+				mutedStyle.Render("Run: git-janitor update")
+			return checkUpdateMsg{notice: notice}
+		}
+
+		return checkUpdateMsg{notice: ""}
 	}
 }
 
@@ -216,5 +221,6 @@ func runUpdate() {
 
 	fmt.Println()
 	fmt.Println(successStyle.Render("  ✓ Git Janitor updated successfully!"))
+	fmt.Println(successStyle.Render("    Installed version v" + latestClean))
 	os.Exit(0)
 }
