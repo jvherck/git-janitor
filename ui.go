@@ -35,6 +35,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -43,7 +44,8 @@ import (
 type appState int
 
 const (
-	stateList    appState = iota // Primary view: selecting branches to delete
+	stateLoading appState = iota // Initial loading view
+	stateList                    // Primary view: selecting branches to delete
 	stateConfirm                 // Secondary view: confirming the deletion of selected branches
 )
 
@@ -64,26 +66,47 @@ var (
 
 // model encapsulates the complete application state for the Bubble Tea framework.
 type model struct {
-	list     list.Model // The core list component for displaying branches
-	deleted  []string   // Names of branches successfully deleted (or marked for deletion in dry-run)
-	errs     []string   // Error messages encountered during branch deletion
-	state    appState   // The current UI view
-	width    int        // Current terminal window width
-	height   int        // Current terminal window height
-	dryRun   bool       // If true, no actual deletion occurs
-	sortMode SortMode   // Current sorting order of the branch list
+	list         list.Model    // The core list component for displaying branches
+	spinner      spinner.Model // The loading spinner
+	deleted      []string      // Names of branches successfully deleted (or marked for deletion in dry-run)
+	errs         []string      // Error messages encountered during branch deletion
+	state        appState      // The current UI view
+	width        int           // Current terminal window width
+	height       int           // Current terminal window height
+	dryRun       bool          // If true, no actual deletion occurs
+	sortMode     SortMode      // Current sorting order of the branch list
+	protectFlag  string        // Protection patterns to use when fetching branches
+	staleDays    float64       // Stale days threshold
+	updateNotice string        // Any notice about available updates
+}
+
+type branchesMsg struct {
+	items []list.Item
+	err   error
+}
+
+func fetchBranchesCmd(protectFlag string, staleDays float64) tea.Cmd {
+	return func() tea.Msg {
+		items, err := getLocalBranches(protectFlag, staleDays)
+		return branchesMsg{items: items, err: err}
+	}
 }
 
 // Init handles background tasks upon application startup.
 // It returns a tea.Cmd which is executed when the program starts.
 func (m model) Init() tea.Cmd {
-	return nil
+	return tea.Batch(
+		m.spinner.Tick,
+		fetchBranchesCmd(m.protectFlag, m.staleDays),
+		checkUpdateCmd(),
+	)
 }
 
 // Update acts as the central event loop, processing keypresses, window resizes, and other messages.
 // It updates the model and returns a tea.Cmd for any side effects.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -95,6 +118,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		// Logic depends on the current window state
+		if m.state == stateLoading {
+			if msg.String() == "ctrl+c" || msg.String() == "q" {
+				return m, tea.Quit
+			}
+			return m, nil
+		}
+
 		if m.state == stateConfirm {
 			return m.handleConfirmUpdate(msg)
 		}
@@ -109,16 +139,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+
+	case branchesMsg:
+		if msg.err != nil {
+			m.errs = append(m.errs, fmt.Sprintf("Error fetching branches: %v", msg.err))
+			return m, tea.Quit
+		}
+		cmd = m.list.SetItems(msg.items)
+		cmds = append(cmds, cmd)
+		m.state = stateList
+
+	case checkUpdateMsg:
+		m.updateNotice = msg.notice
+
+	case spinner.TickMsg:
+		if m.state == stateLoading {
+			m.spinner, cmd = m.spinner.Update(msg)
+			cmds = append(cmds, cmd)
+		}
 	}
 
 	// Passes unhandled messages down to the list component to ensure standard
 	// navigation (up/down/filtering) continues to function.
 	if m.state == stateList {
 		m.list, cmd = m.list.Update(msg)
-		return m, cmd
+		cmds = append(cmds, cmd)
 	}
 
-	return m, nil
+	return m, tea.Batch(cmds...)
 }
 
 // handleCustomListKeys intercepts keys specific to branch operations (selection, filtering, sorting)
@@ -246,6 +294,11 @@ func (m model) handleConfirmUpdate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // View evaluates the current application state and renders the corresponding UI layout.
 func (m model) View() string {
+	if m.state == stateLoading {
+		s := fmt.Sprintf("\n\n   %s Fetching git branches...\n\n", m.spinner.View())
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, s)
+	}
+
 	if m.state == stateConfirm {
 		// Render the confirmation dialog
 		selectedCount := 0
